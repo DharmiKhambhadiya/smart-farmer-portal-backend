@@ -3,6 +3,12 @@ const mongoose = require("mongoose");
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+
     stock: { type: Number, required: true },
     categories: { type: String, required: true },
     brand: { type: String, required: true },

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const User = require("./user");
 
 const orderschema = mongoose.Schema(
   {
@@ -19,9 +20,10 @@ const orderschema = mongoose.Schema(
     total: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["processing", "Shipped", "Delivered"],
+      enum: ["processing", "shipped", "delivered"],
       default: "processing",
     },
+
     orderitems: [
       {
         product: {

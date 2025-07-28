@@ -1,26 +1,21 @@
-const { Order } = require("../model/order");
+const Order = require("../model/order");
 const Cart = require("../model/cart");
 
 // Create Order from Cart
 exports.CreateOrder = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userid;
+    const { shippingdetails, shippingcharges, total } = req.body;
 
-    // Validate required fields
-    const { shippingdetails, shippingcharges, total, status } = req.body;
-    if (!shippingdetails || !shippingcharges || !total || !status) {
+    if (!shippingdetails || !shippingcharges || !total) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Get cart of logged-in user
     const cart = await Cart.findOne({ user: userId });
     if (!cart || cart.items.length === 0) {
       return res.status(404).json({ message: "Your cart is empty" });
     }
 
-    const subtotal = cart.subtotal || 0;
-
-    // Prepare order items from cart
     const orderitems = cart.items.map((item) => ({
       product: item.product,
       name: item.name,
@@ -28,24 +23,23 @@ exports.CreateOrder = async (req, res) => {
       quantity: item.quantity,
       image: item.image,
     }));
-
-    // Create new order
+    console.log(req.orderitems);
+    console.log(req.user);
     const newOrder = await Order.create({
       user: userId,
       shippingdetails,
       shippingcharges,
-      subtotal,
+      subtotal: cart.subtotal || 0,
       total,
-      status,
       orderitems,
     });
 
-    // Clear cart after placing order
     await Cart.findOneAndDelete({ user: userId });
 
     res.status(201).json({
       success: true,
       message: "Order placed successfully",
+      orderId: newOrder._id,
       data: newOrder,
     });
   } catch (error) {
@@ -57,7 +51,8 @@ exports.CreateOrder = async (req, res) => {
 //  Get All Orders for Logged-in User
 exports.getOrder = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userid;
+
     const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
 
     if (!orders || orders.length === 0) {
@@ -75,7 +70,7 @@ exports.getOrder = async (req, res) => {
   }
 };
 
-//  [Optional Admin Feature] Get All Orders (for dashboard)
+//  Optional Admin Feature Get All Orders (for dashboard)
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
@@ -86,7 +81,7 @@ exports.getAllOrders = async (req, res) => {
   }
 };
 
-//  [Optional] Update Order Status (admin panel)
+//  Optional Update Order Status (admin panel)
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;

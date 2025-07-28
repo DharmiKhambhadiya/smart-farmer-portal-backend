@@ -1,28 +1,24 @@
-require("dotenv").config(); // Ensure .env is loaded
-
 const nodemailer = require("nodemailer");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
-});
-
 exports.sendMail = async (to, subject, html) => {
-  const mailOptions = {
-    from: `Smart Farmer Portal <${process.env.MAIL_USER}>`,
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_USER,
     to,
     subject,
     html,
-  };
+  });
+};
 
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(` Email sent to ${to}: ${info.response}`);
-  } catch (err) {
-    console.error(" Email send error:", err.message);
-  }
+exports.sendResetPasswordEmail = async (email, rawToken) => {
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
+  const html = `<h3>Reset Password</h3><p>Click below (valid for 5 minutes):</p><a href="${resetLink}">${resetLink}</a>`;
+  await this.sendMail(email, "Reset Password", html);
 };

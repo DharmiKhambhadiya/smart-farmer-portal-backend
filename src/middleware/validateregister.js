@@ -10,5 +10,16 @@ module.exports = (req, res, next) => {
     return res.status(400).json({ message: "Invalid or missing fields" });
   }
 
-  next(); // proceed if validation passes
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ message: "Invalid email format" });
+  }
+
+  if (password.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "Password must be at least 6 characters" });
+  }
+
+  next();
 };

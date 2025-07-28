@@ -6,6 +6,11 @@ const pendingUserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     otp: { type: String, required: true },
     otpexpiry: { type: Date, required: true },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
   },
   { timestamps: true }
 );

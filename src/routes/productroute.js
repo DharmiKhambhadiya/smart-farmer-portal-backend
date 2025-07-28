@@ -1,20 +1,35 @@
 const express = require("express");
-const productcontroller = require("../controller/productcontroller");
+const productController = require("../controller/productcontroller");
+const { verifyToken } = require("../middleware/authMiddleware");
+const { authorizeRoles } = require("../middleware/roleMiddleware");
+
 const router = express.Router();
 
-//get search product
-router.get("/search", productcontroller.searchProducts);
+// Public routes
+router.get("/search", productController.searchProducts);
+router.get("/latest", productController.getLatestproduct);
+router.get("/category", productController.getAllCategroies);
+router.get("/", productController.getProducts);
+router.get("/:id", productController.getProduct);
 
-//get latest product
-router.get("/latest", productcontroller.getLatestproduct);
-
-//get all categories
-router.get("/category", productcontroller.getAllCategroies);
-
-//get  All product
-router.get("/", productcontroller.getProducts);
-
-//get product by id
-router.get("/:id", productcontroller.getProduct);
+// Admin-only routes
+router.post(
+  "/",
+  verifyToken,
+  authorizeRoles("admin"),
+  productController.addProduct
+);
+router.put(
+  "/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  productController.updateProduct
+);
+router.delete(
+  "/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  productController.deleteProduct
+);
 
 module.exports = router;

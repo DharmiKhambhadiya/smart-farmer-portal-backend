@@ -6,16 +6,20 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   resetToken: String,
   resetTokenExpiry: Date,
-  //profile
-  firstName: { type: String },
-  lastName: { type: String },
-  city: { type: String },
-  phoneNumber: { type: String },
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user",
+  },
+  firstName: String,
+  lastName: String,
+  city: String,
+  phoneNumber: String,
   address: {
-    street: { type: String },
-    state: { type: String },
-    pincode: { type: String },
+    street: String,
+    state: String,
+    pincode: String,
   },
 });
 
-exports.User = mongoose.model("User", userSchema);
+module.exports.User = mongoose.model("User", userSchema);

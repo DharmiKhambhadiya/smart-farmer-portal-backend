@@ -6,9 +6,7 @@ exports.generateResetToken = (user) => {
     .createHash("sha256")
     .update(rawToken)
     .digest("hex");
-
   user.resetToken = hashedToken;
-  user.resetTokenExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
-
-  return rawToken; // this will be sent in email
+  user.resetTokenExpiry = Date.now() + 5 * 60 * 1000;
+  return rawToken;
 };

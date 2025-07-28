@@ -1,21 +1,35 @@
 const express = require("express");
-const croptcontroller = require("../controller/cropcontroller");
 const router = express.Router();
+const cropController = require("../controller/cropcontroller");
+const { verifyToken } = require("../middleware/authMiddleware");
+const { authorizeRoles } = require("../middleware/roleMiddleware");
 
-//user api
-//get search crop
-router.get("/search", croptcontroller.searchCrop);
+// USER ROUTES
+router.get("/search", cropController.searchCrop);
+router.get("/", cropController.getCrops);
+router.get("/category", cropController.getCategory);
+router.get("/latest", cropController.getLatestCrop);
+router.get("/:id", cropController.getCrop);
 
-//To Get all Crops
-router.get("/", croptcontroller.getCrops);
+//ADMIN-ONLY ROUTES
 
-//get all categories
-router.get("/category", croptcontroller.getCategory);
-
-//get latest crop
-router.get("/latest", croptcontroller.getLatestCrop);
-
-//To Get Crop By id
-router.get("/:id", croptcontroller.getCrop);
+router.post(
+  "/",
+  verifyToken,
+  authorizeRoles("admin"),
+  cropController.createCrop
+);
+router.put(
+  "/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  cropController.updateCrop
+);
+router.delete(
+  "/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  cropController.deleteCrop
+);
 
 module.exports = router;

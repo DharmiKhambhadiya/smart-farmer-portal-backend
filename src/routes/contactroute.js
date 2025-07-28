@@ -1,14 +1,39 @@
 const express = require("express");
-const contactcontroller = require("../controller/contactcontroller");
-const contact = require("../model/contact");
 const router = express.Router();
+const contactcontroller = require("../controller/contactcontroller");
+const { verifyToken } = require("../middleware/authMiddleware");
+const { authorizeRoles } = require("../middleware/roleMiddleware");
 
-//create message
-router.post("/create", contactcontroller.createMess);
+// User creates message
+router.post(
+  "/create",
+  verifyToken,
+  authorizeRoles("user"),
+  contactcontroller.createMess
+);
 
-//Get All Request
-router.get("/getAllrequest", contactcontroller.getAllRequest);
+// Admin gets all messages
+router.get(
+  "/getAllrequest",
+  verifyToken,
+  authorizeRoles("admin"),
+  contactcontroller.getAllRequest
+);
 
-//Get Request by Id
-router.get("/getRequestById", contactcontroller.getRequest);
+// Admin gets request by ID
+router.get(
+  "/getRequestById/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  contactcontroller.getRequest
+);
+
+// Admin replies to request
+router.put(
+  "/reply/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  contactcontroller.replyRequest
+);
+
 module.exports = router;
