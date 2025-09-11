@@ -1,5 +1,19 @@
 const Crop = require("../model/crop");
+const cloudinary = require("../utilities/cloudinary");
 
+// Helper to upload buffer to Cloudinary
+const streamUpload = (file) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "products" },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    stream.end(file.buffer);
+  });
+};
 // GET all crops
 exports.getCrops = async (req, res) => {
   try {
@@ -11,6 +25,17 @@ exports.getCrops = async (req, res) => {
   }
 };
 
+//GET crop name and image
+
+exports.GetList = async (req, res) => {
+  try {
+    const crops = await Crop.find({}, "name image");
+    res.status(200).json({ success: true, data: crops });
+  } catch (error) {
+    console.error("Error fetching croplist:", error);
+    res.status(500).json({ success: false, messare: "server errror" });
+  }
+};
 // GET crop by ID
 exports.getCrop = async (req, res) => {
   try {
@@ -96,9 +121,29 @@ exports.searchCrop = async (req, res) => {
 // CREATE new crop
 exports.createCrop = async (req, res) => {
   try {
-    const crop = new Crop(req.body);
+    let imageUrls = [];
+
+    // Upload images to Cloudinary
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map((file) => streamUpload(file));
+      const results = await Promise.all(uploadPromises);
+      imageUrls = results.map((r) => r.secure_url);
+    }
+
+    // Build crop data
+    const cropData = {
+      ...req.body,
+      images: imageUrls,
+    };
+
+    const crop = new Crop(cropData);
     await crop.save();
-    res.status(201).json({ success: true, data: crop });
+
+    res.status(201).json({
+      success: true,
+      message: "Crop created successfully",
+      data: crop,
+    });
   } catch (error) {
     console.error("Error creating crop:", error);
     res.status(500).json({ success: false, message: "Server error" });

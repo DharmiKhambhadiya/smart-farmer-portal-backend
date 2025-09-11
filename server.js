@@ -14,7 +14,12 @@ const contactroute = require("./src/routes/contactroute");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(bodyparser.json());
 app.use(bodyparser.urlencoded({ extended: false }));
 

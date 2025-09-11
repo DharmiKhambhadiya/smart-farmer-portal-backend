@@ -7,6 +7,7 @@ const validateRegister = require("../middleware/validateRegister");
 
 router.post("/register", validateRegister, auth.register);
 router.post("/verify-otp", auth.verifyOTP);
+router.post("/resend-otp", auth.resendOTP);
 router.post("/login", auth.login);
 router.get("/profile", verifyToken, auth.getProfile);
 router.post("/changepass", verifyToken, auth.changePassword);

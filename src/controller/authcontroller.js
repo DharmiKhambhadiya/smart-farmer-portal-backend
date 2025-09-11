@@ -4,9 +4,10 @@ const { User } = require("../model/user");
 const {
   validateNewRegistration,
   registerPendingUser,
+  resendOTPForPendingUser,
 } = require("../services/authservice");
 const { verifyOTPAndCreateUser } = require("../services/otpservice");
-const { sendResetPasswordEmail } = require("../services/mailService");
+const { sendResetPasswordEmail } = require("../services/mailservice");
 const { generateResetToken } = require("../utilities/hashutility");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -25,6 +26,7 @@ const generateToken = (user) => {
 exports.register = async (req, res) => {
   const { email, password, role = "user" } = req.body;
 
+  console.log(req.body);
   try {
     await validateNewRegistration(email);
     await registerPendingUser({ email, password, role });
@@ -53,6 +55,19 @@ exports.verifyOTP = async (req, res) => {
     });
   } catch (err) {
     console.error("Verify OTP Error:", err);
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// --- Resend OTP
+exports.resendOTP = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    await resendOTPForPendingUser(email);
+    res.status(200).json({ message: "New OTP sent to email" });
+  } catch (err) {
+    console.error("Resend OTP Error:", err);
     res.status(400).json({ message: err.message });
   }
 };
@@ -232,7 +247,7 @@ exports.resetPassword = async (req, res) => {
   const { newPassword, confirmPassword } = req.body;
 
   if (!newPassword || !confirmPassword)
-    return res.status(400).json({ message: "All fields are required" });
+    return res.status(400).json({ message: "All fields are required....." });
 
   if (newPassword !== confirmPassword)
     return res.status(400).json({ message: "Passwords do not match" });
