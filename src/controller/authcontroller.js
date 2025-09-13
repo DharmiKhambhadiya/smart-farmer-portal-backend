@@ -1,6 +1,6 @@
 // controllers/authController.js
 
-const { User } = require("../model/user");
+const User = require("../model/user");
 const {
   validateNewRegistration,
   registerPendingUser,
@@ -16,9 +16,9 @@ const crypto = require("crypto");
 // Utility to generate JWT
 const generateToken = (user) => {
   return jwt.sign(
-    { userid: user._id, email: user.email, role: user.role },
+    { id: user._id, email: user.email, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "24h" }
   );
 };
 
@@ -26,11 +26,9 @@ const generateToken = (user) => {
 exports.register = async (req, res) => {
   const { email, password, role = "user" } = req.body;
 
-  console.log(req.body);
   try {
     await validateNewRegistration(email);
     await registerPendingUser({ email, password, role });
-
     res.status(200).json({ message: "OTP sent to email for verification" });
   } catch (err) {
     console.error("Register Error:", err);
@@ -108,7 +106,7 @@ exports.login = async (req, res) => {
 // --- Get Profile
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userid).select(
+    const user = await User.findById(req.user.id).select(
       "-password -otp -otpexpiry"
     );
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -120,7 +118,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// Admin: Get All Users
+// --- Admin: Get All Users
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ role: "user" }).select(
@@ -133,7 +131,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-//Admin: Get User By Id
+// --- Admin: Get User By Id
 exports.getUserById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -147,7 +145,7 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// Admin: Update a User
+// --- Admin: Update a User
 exports.updateUserByAdmin = async (req, res) => {
   const { id } = req.params;
   const { name, role, isVerified } = req.body;
@@ -161,7 +159,6 @@ exports.updateUserByAdmin = async (req, res) => {
     if (typeof isVerified === "boolean") user.isVerified = isVerified;
 
     await user.save();
-
     res.status(200).json({ message: "User updated successfully", user });
   } catch (err) {
     console.error("Update User Error:", err);
@@ -169,7 +166,7 @@ exports.updateUserByAdmin = async (req, res) => {
   }
 };
 
-// Admin: Delete a User
+// --- Admin: Delete a User
 exports.deleteUserByAdmin = async (req, res) => {
   const { id } = req.params;
 
@@ -195,7 +192,7 @@ exports.changePassword = async (req, res) => {
     return res.status(400).json({ message: "Passwords do not match" });
 
   try {
-    const user = await User.findById(req.user.userid);
+    const user = await User.findById(req.user.id);
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!isMatch)
@@ -222,7 +219,6 @@ exports.sendResetPasswordLink = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-
     if (!user || !user.isVerified) {
       return res
         .status(400)
@@ -233,7 +229,6 @@ exports.sendResetPasswordLink = async (req, res) => {
     await user.save();
 
     await sendResetPasswordEmail(email, rawToken);
-
     res.status(200).json({ message: "Reset link sent to email" });
   } catch (err) {
     console.error("Send Reset Link Error:", err);
@@ -247,7 +242,7 @@ exports.resetPassword = async (req, res) => {
   const { newPassword, confirmPassword } = req.body;
 
   if (!newPassword || !confirmPassword)
-    return res.status(400).json({ message: "All fields are required....." });
+    return res.status(400).json({ message: "All fields are required" });
 
   if (newPassword !== confirmPassword)
     return res.status(400).json({ message: "Passwords do not match" });
@@ -272,6 +267,46 @@ exports.resetPassword = async (req, res) => {
     res.status(200).json({ message: "Password reset successful" });
   } catch (err) {
     console.error("Reset Password Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+//----user update their profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const { firstName, lastName, city, phoneNumber, address } = req.body;
+
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (city) user.city = city;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
+    if (address) {
+      user.address = {
+        ...user.address,
+        ...address,
+      };
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        city: user.city,
+        phoneNumber: user.phoneNumber,
+        address: user.address,
+      },
+    });
+  } catch (err) {
+    console.error("Update Profile Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

@@ -4,11 +4,27 @@ const Cart = require("../model/cart");
 // Create Order from Cart
 exports.CreateOrder = async (req, res) => {
   try {
-    const userId = req.user.userid;
-    const { shippingdetails, shippingcharges, total } = req.body;
+    const userId = req.user.id;
+    let { shippingdetails, shippingcharges, total } = req.body;
 
-    if (!shippingdetails || !shippingcharges || !total) {
-      return res.status(400).json({ message: "All fields are required" });
+    if (shippingcharges == null || total == null) {
+      return res
+        .status(400)
+        .json({ message: "Shipping charges and total are required" });
+    }
+
+    // 🔹 Auto-fill shipping details from user profile if not provided
+    if (!shippingdetails || Object.keys(shippingdetails).length === 0) {
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      shippingdetails = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        city: user.city,
+        phoneNumber: user.phoneNumber,
+        address: user.address,
+      };
     }
 
     const cart = await Cart.findOne({ user: userId });
@@ -23,8 +39,7 @@ exports.CreateOrder = async (req, res) => {
       quantity: item.quantity,
       image: item.image,
     }));
-    console.log(req.orderitems);
-    console.log(req.user);
+
     const newOrder = await Order.create({
       user: userId,
       shippingdetails,
@@ -34,6 +49,7 @@ exports.CreateOrder = async (req, res) => {
       orderitems,
     });
 
+    // Empty the cart after order
     await Cart.findOneAndDelete({ user: userId });
 
     res.status(201).json({
@@ -51,7 +67,7 @@ exports.CreateOrder = async (req, res) => {
 //  Get All Orders for Logged-in User
 exports.getOrder = async (req, res) => {
   try {
-    const userId = req.user.userid;
+    const userId = req.user.id;
 
     const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
 

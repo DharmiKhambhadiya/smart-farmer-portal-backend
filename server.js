@@ -28,7 +28,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/crop", croproute);
 app.use("/api/product", productroute);
 app.use("/api/order", orderroute);
-app.use("/api/order", orderroute);
 app.use("/api/cart", cartroute);
 app.use("/api/contact", contactroute);
 

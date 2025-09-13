@@ -4,10 +4,10 @@ const Product = require("../model/product");
 // Add or Increase Quantity of Cart Item
 exports.addOrUpdateCartItems = async (req, res) => {
   try {
-    const userId = req.user.id; // Changed from req.user.userid
+    const userId = req.user.id;
     const { productId, quantity } = req.body;
 
-    console.log("🛒 Add to cart request:", { userId, productId, quantity }); // Debug
+    console.log("🛒 Add to cart request:", { userId, productId, quantity });
 
     if (!productId || !quantity || quantity < 1) {
       return res
@@ -21,7 +21,7 @@ exports.addOrUpdateCartItems = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    console.log("✅ Product found:", product.name, "Price:", product.price); // Debug
+    console.log("✅ Product found:", product.name, "Price:", product.price);
 
     let cart = await Cart.findOne({ user: userId });
 
@@ -34,7 +34,7 @@ exports.addOrUpdateCartItems = async (req, res) => {
             product: product._id,
             name: product.name,
             price: product.price,
-            image: product.mainImage,
+            image: product.images?.[0] || null, // ✅ FIXED
             quantity,
             totalPrice: product.price * quantity,
           },
@@ -51,18 +51,18 @@ exports.addOrUpdateCartItems = async (req, res) => {
         cart.items[itemIndex].quantity += quantity;
         cart.items[itemIndex].totalPrice =
           cart.items[itemIndex].quantity * cart.items[itemIndex].price;
-        console.log("➕ Increased quantity for existing item"); // Debug
+        console.log("➕ Increased quantity for existing item");
       } else {
         // New item
         cart.items.push({
           product: product._id,
           name: product.name,
           price: product.price,
-          image: product.mainImage,
+          image: product.images?.[0] || null, // ✅ FIXED
           quantity,
           totalPrice: quantity * product.price,
         });
-        console.log("🆕 Added new item to cart"); // Debug
+        console.log("🆕 Added new item to cart");
       }
 
       // Recalculate subtotal
@@ -73,9 +73,8 @@ exports.addOrUpdateCartItems = async (req, res) => {
     }
 
     await cart.save();
-    console.log("💾 Cart saved successfully. Total items:", cart.items.length); // Debug
+    console.log("💾 Cart saved successfully. Total items:", cart.items.length);
 
-    // Return only the items and subtotal (match your frontend expectation)
     return res.status(200).json({
       success: true,
       message: "Cart updated",
@@ -90,13 +89,13 @@ exports.addOrUpdateCartItems = async (req, res) => {
   }
 };
 
-// Update the other functions similarly to use req.user.id
+// Update Item Quantity
 exports.updateItemQuantity = async (req, res) => {
   try {
-    const userId = req.user.id; // Changed from req.user.userid
+    const userId = req.user.id;
     const { productId, quantity } = req.body;
 
-    console.log("🔄 Update quantity request:", { userId, productId, quantity }); // Debug
+    console.log("🔄 Update quantity request:", { userId, productId, quantity });
 
     if (!productId || typeof quantity !== "number" || quantity < 1) {
       return res
@@ -117,11 +116,9 @@ exports.updateItemQuantity = async (req, res) => {
       return res.status(404).json({ message: "Item not found in cart" });
     }
 
-    // Update quantity and totalPrice
     cart.items[itemIndex].quantity = quantity;
     cart.items[itemIndex].totalPrice = cart.items[itemIndex].price * quantity;
 
-    // Recalculate subtotal
     cart.subtotal = cart.items.reduce((sum, item) => sum + item.totalPrice, 0);
 
     await cart.save();
@@ -142,8 +139,8 @@ exports.updateItemQuantity = async (req, res) => {
 // Get Cart
 exports.getCart = async (req, res) => {
   try {
-    const userId = req.user.id; // Changed from req.user.userid
-    console.log("📦 Fetching cart for user:", userId); // Debug
+    const userId = req.user.id;
+    console.log("📦 Fetching cart for user:", userId);
 
     const cart = await Cart.findOne({ user: userId }).populate("items.product");
 
@@ -152,13 +149,11 @@ exports.getCart = async (req, res) => {
       return res.status(404).json({ message: "No cart found" });
     }
 
-    console.log("✅ Cart fetched. Items count:", cart.items.length); // Debug
-    res
-      .status(200)
-      .json({
-        success: true,
-        data: { items: cart.items, subtotal: cart.subtotal },
-      });
+    console.log("✅ Cart fetched. Items count:", cart.items.length);
+    res.status(200).json({
+      success: true,
+      data: { items: cart.items, subtotal: cart.subtotal },
+    });
   } catch (err) {
     console.error("Failed to fetch cart:", err);
     res.status(500).json({ message: "Internal server error" });
@@ -168,10 +163,10 @@ exports.getCart = async (req, res) => {
 // Remove From Cart
 exports.removeFromCart = async (req, res) => {
   try {
-    const userId = req.user.id; // Changed from req.user.userid
+    const userId = req.user.id;
     const { productId } = req.params;
 
-    console.log("🗑️ Remove item request:", { userId, productId }); // Debug
+    console.log("🗑️ Remove item request:", { userId, productId });
 
     const cart = await Cart.findOne({ user: userId });
 
@@ -192,12 +187,11 @@ exports.removeFromCart = async (req, res) => {
         .json({ success: false, message: "Item not found in cart" });
     }
 
-    // Recalculate subtotal
     cart.subtotal = cart.items.reduce((sum, item) => sum + item.totalPrice, 0);
 
     await cart.save();
 
-    console.log("✅ Item removed successfully"); // Debug
+    console.log("✅ Item removed successfully");
     res.json({
       success: true,
       message: "Item removed successfully",
@@ -210,16 +204,16 @@ exports.removeFromCart = async (req, res) => {
   }
 };
 
-// Merge cart (already good, just update userId)
+// Merge Cart
 exports.mergeCart = async (req, res) => {
   try {
-    const userId = req.user.id; // Changed from req.user.userid
+    const userId = req.user.id;
     const { items } = req.body;
 
     console.log("🔗 Merge cart request:", {
       userId,
       itemsCount: items?.length,
-    }); // Debug
+    });
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "No items to merge" });
@@ -253,7 +247,7 @@ exports.mergeCart = async (req, res) => {
           product: product._id,
           name: product.name,
           price: product.price,
-          image: product.mainImage,
+          image: product.images?.[0] || null, // ✅ FIXED
           quantity,
           totalPrice: quantity * product.price,
         });
@@ -264,7 +258,7 @@ exports.mergeCart = async (req, res) => {
     cart.subtotal = cart.items.reduce((sum, item) => sum + item.totalPrice, 0);
     await cart.save();
 
-    console.log(`✅ Merged ${mergedCount} items into cart`); // Debug
+    console.log(`✅ Merged ${mergedCount} items into cart`);
     return res.status(200).json({
       success: true,
       message: `Local cart merged successfully (${mergedCount} items)`,

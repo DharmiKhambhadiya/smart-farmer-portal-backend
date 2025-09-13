@@ -13,6 +13,7 @@ router.get("/profile", verifyToken, auth.getProfile);
 router.post("/changepass", verifyToken, auth.changePassword);
 router.post("/resetlink", auth.sendResetPasswordLink);
 router.post("/resetpassword/:token", auth.resetPassword);
+router.put("/profile", verifyToken, auth.updateProfile);
 
 //Admin Routes
 router.get(

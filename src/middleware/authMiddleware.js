@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
+const User = require("../model/user");
 
-exports.verifyToken = (req, res, next) => {
+exports.verifyToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     console.log("❌ No token provided in headers");
@@ -11,19 +12,28 @@ exports.verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("🔑 Token decoded successfully:", decoded); // Debug log
+    console.log("🔑 Token decoded successfully:", decoded); // Debug
 
-    // Handle both 'id' and 'userid' in the token payload
+    // Find user in database to ensure they exist
+    const user = await User.findById(decoded.id || decoded.userid).select(
+      "-password"
+    );
+    if (!user) {
+      console.log("❌ User not found for ID:", decoded.id || decoded.userid);
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // Set req.user with standardized id
     req.user = {
-      id: decoded.id || decoded.userid || decoded._id, // Standardize to 'id'
-      userid: decoded.id || decoded.userid || decoded._id, // Keep for backward compatibility
-      ...decoded, // Include other fields like email, role, etc.
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      ...decoded,
     };
-
-    console.log("👤 User set in req.user:", req.user.id); // Debug log
+    console.log("👤 User set in req.user:", req.user.id); // Debug
     next();
   } catch (err) {
     console.error("❌ Token verification failed:", err.message);
-    return res.status(403).json({ message: "Invalid token" });
+    return res.status(403).json({ message: "Invalid or expired token" });
   }
 };
