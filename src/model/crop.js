@@ -8,8 +8,9 @@ const cropSchema = new mongoose.Schema({
     trim: true,
     index: true,
   },
+
   imageUrl: {
-    type: String,
+    type: [String], // multiple images
     required: true,
   },
 
@@ -35,40 +36,33 @@ const cropSchema = new mongoose.Schema({
     index: true,
   },
 
-  flowerColor: {
-    type: String,
-  },
+  flowerColor: String,
 
   overview: {
     type: String,
     required: true,
   },
+
   category: {
     type: String,
     required: true,
   },
 
-  lifecycle: {
-    planting: {
-      season: {
-        type: String,
-        index: true,
-      },
+  lifecycle: [
+    {
+      stage: { type: String, required: true }, // e.g. "Planting", "Growing"
+      season: String,
       seedDepth: String,
       spacing: {
         row: String,
         plant: String,
       },
       sowingTips: String,
-    },
-    growing: {
       irrigationNeeds: String,
-      fertilizer: {
-        type: String,
-      },
+      fertilizer: String,
       careTips: [String],
     },
-  },
+  ],
 
   pestsAndDiseases: [
     {

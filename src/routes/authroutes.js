@@ -28,6 +28,12 @@ router.get(
   authorizeRoles("admin"),
   auth.getUserById
 );
+router.get(
+  "/admin/users/search",
+  verifyToken,
+  authorizeRoles("admin"),
+  auth.searchUsers
+);
 router.put(
   "/admin/user/:id",
   verifyToken,

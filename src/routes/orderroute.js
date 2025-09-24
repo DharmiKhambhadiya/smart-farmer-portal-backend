@@ -1,3 +1,4 @@
+// routes/order.js (Remove duplicate; keep one clean version)
 const express = require("express");
 const router = express.Router();
 const orderController = require("../controller/ordercontroller");
@@ -8,7 +9,7 @@ const { authorizeRoles } = require("../middleware/roleMiddleware");
 router.post(
   "/create",
   verifyToken,
-  authorizeRoles("user"),
+  authorizeRoles("user", "admin"),
   orderController.CreateOrder
 );
 
@@ -34,6 +35,14 @@ router.put(
   verifyToken,
   authorizeRoles("admin"),
   orderController.updateOrderStatus
+);
+
+// Admin: Get Latest Orders
+router.get(
+  "/dashboard/latest",
+  verifyToken,
+  authorizeRoles("admin"),
+  orderController.getLatestOrders
 );
 
 module.exports = router;

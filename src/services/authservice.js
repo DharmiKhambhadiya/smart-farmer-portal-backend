@@ -1,17 +1,17 @@
 const bcrypt = require("bcrypt");
 const PendingUser = require("../model/pendinguser");
-const { User } = require("../model/user");
+const User = require("../model/user");
 const { sendMail } = require("./mailservice");
 const { generateOTP } = require("../utilities/otp");
 
 exports.registerPendingUser = async ({ email, password, role }) => {
-  console.log('🔄 Starting registration for:', email);
-  
+  console.log("🔄 Starting registration for:", email);
+
   const hashedPassword = await bcrypt.hash(password, 12);
   const otp = generateOTP();
   const otpexpiry = new Date(Date.now() + 5 * 60 * 1000);
 
-  console.log('🔢 Generated OTP:', otp);
+  console.log("🔢 Generated OTP:", otp);
 
   await PendingUser.create({
     email,
@@ -21,16 +21,16 @@ exports.registerPendingUser = async ({ email, password, role }) => {
     role,
   });
 
-  console.log('💾 Pending user created in database');
+  console.log("💾 Pending user created in database");
 
   const html = `<p>Your OTP is <strong>${otp}</strong>. It will expire in 5 minutes.</p>`;
-  
-  console.log('📧 Attempting to send email to:', email);
+
+  console.log("📧 Attempting to send email to:", email);
   try {
     await sendMail(email, "Verify your Email - OTP Inside", html);
-    console.log('✅ Email sent successfully!');
+    console.log("✅ Email sent successfully!");
   } catch (error) {
-    console.error('❌ Email sending failed:', error.message);
+    console.error("❌ Email sending failed:", error.message);
     throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 };

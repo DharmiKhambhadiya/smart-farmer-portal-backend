@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
     stock: { type: Number, required: true },
     subtitle: { type: String },
     categories: { type: String, required: true },
@@ -12,6 +11,7 @@ const productSchema = new mongoose.Schema(
     madeIn: { type: String },
     images: [{ type: String }],
     price: { type: Number, required: true },
+    bestSeller: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

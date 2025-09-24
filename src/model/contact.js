@@ -1,12 +1,14 @@
+// models/contact.js
 const mongoose = require("mongoose");
 
 const contactSupportSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true },
-    phoneNumber: { type: String },
-    subject: { type: String },
+    phonenumber: { type: String }, // Changed from phoneNumber to phonenumber to match controller
+    subject: { type: String, required: true },
     message: { type: String, required: true },
+    replyMessage: { type: String }, // Add this field for storing replies
 
     status: {
       type: String,
@@ -20,7 +22,7 @@ const contactSupportSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // Adds createdAt & updatedAt fields automatically
+    timestamps: true,
   }
 );
 

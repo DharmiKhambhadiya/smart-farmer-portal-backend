@@ -18,7 +18,7 @@ const generateToken = (user) => {
   return jwt.sign(
     { id: user._id, email: user.email, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: "24h" }
+    { expiresIn: "50h" }
   );
 };
 
@@ -148,13 +148,16 @@ exports.getUserById = async (req, res) => {
 // --- Admin: Update a User
 exports.updateUserByAdmin = async (req, res) => {
   const { id } = req.params;
-  const { name, role, isVerified } = req.body;
+  const { firstName, lastName, city, phoneNumber, role, isVerified } = req.body;
 
   try {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (name) user.name = name;
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (city) user.city = city;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
     if (role) user.role = role;
     if (typeof isVerified === "boolean") user.isVerified = isVerified;
 
@@ -177,6 +180,46 @@ exports.deleteUserByAdmin = async (req, res) => {
     res.status(200).json({ message: "User deleted successfully" });
   } catch (err) {
     console.error("Delete User Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// --- Admin: Search & Paginate Users
+exports.searchUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+
+    // Build search filter for firstname, lastname, or email
+    const filter = {
+      role: "user",
+      $or: [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ],
+    };
+
+    // Pagination numbers
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Fetch users
+    const users = await User.find(filter)
+      .select("-password -otp -otpexpiry -resetToken -resetTokenExpiry")
+      .skip(skip)
+      .limit(Number(limit));
+
+    // Count total documents for pagination info
+    const total = await User.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      page: Number(page),
+      totalPages: Math.ceil(total / limit),
+      totalUsers: total,
+      users,
+    });
+  } catch (err) {
+    console.error("Search Users Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -270,7 +313,6 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 //----user update their profile
 exports.updateProfile = async (req, res) => {

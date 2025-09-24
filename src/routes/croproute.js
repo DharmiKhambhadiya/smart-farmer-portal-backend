@@ -3,7 +3,7 @@ const router = express.Router();
 const cropController = require("../controller/cropcontroller");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/roleMiddleware");
-const upload = require("../middleware/mmulter");
+const { upload, handleMulterError } = require("../middleware/mmulter");
 
 // USER ROUTES
 router.get("/search", cropController.searchCrop);
@@ -13,22 +13,25 @@ router.get("/category", cropController.getCategory);
 router.get("/latest", cropController.getLatestCrop);
 router.get("/:id", cropController.getCrop);
 
-//ADMIN-ONLY ROUTES
-
+// ADMIN-ONLY ROUTES
 router.post(
   "/",
   verifyToken,
   authorizeRoles("admin"),
-  upload.array("images", 5), // allow up to 5 images
+  upload, // handles .array("images", 5)
+  handleMulterError,
   cropController.createCrop
 );
+
 router.put(
   "/:id",
   verifyToken,
   authorizeRoles("admin"),
-  upload.array("images", 5), // allow up to 5 images
+  upload,
+  handleMulterError,
   cropController.updateCrop
 );
+
 router.delete(
   "/:id",
   verifyToken,

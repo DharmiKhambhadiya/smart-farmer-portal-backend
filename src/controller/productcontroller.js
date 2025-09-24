@@ -1,21 +1,8 @@
 const Product = require("../model/product");
-const cloudinary = require("../utilities/cloudinary");
+const path = require("path");
+const fs = require("fs");
 
-// Helper to upload buffer to Cloudinary
-const streamUpload = (file) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: "products" },
-      (error, result) => {
-        if (result) resolve(result);
-        else reject(error);
-      }
-    );
-    stream.end(file.buffer);
-  });
-};
-
-// ✅ Get all products
+// Get all products
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find();
@@ -24,48 +11,47 @@ exports.getProducts = async (req, res) => {
     }
     res.status(200).json({ success: true, data: products });
   } catch (error) {
-    console.log("Failed to get products", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Failed to get products:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get product by ID
+// Get product by ID
 exports.getProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id);
     if (!product) return res.status(404).json({ message: "Product not found" });
-
     res.status(200).json({ success: true, data: product });
   } catch (error) {
-    console.log("Failed to get product", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Failed to get product:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get latest 10 products
+// Get latest 8 products
 exports.getLatestproduct = async (req, res) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 }).limit(10);
+    const products = await Product.find().sort({ createdAt: -1 }).limit(8);
     return res.status(200).json({ success: true, data: products });
   } catch (error) {
-    console.log("Failed to get latest products", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Failed to get latest products:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get distinct categories
+// Get distinct categories
 exports.getAllCategroies = async (req, res) => {
   try {
     const categories = await Product.distinct("categories");
     return res.status(200).json({ success: true, data: categories });
   } catch (error) {
-    console.log("Failed to get categories", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Failed to get categories:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// ✅ Search + pagination
+// Search + pagination
 exports.searchProducts = async (req, res) => {
   try {
     const { search } = req.query;
@@ -99,115 +85,318 @@ exports.searchProducts = async (req, res) => {
       data: products,
     });
   } catch (error) {
-    console.error("Failed to search products", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Failed to search products:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// ✅ Add product (supports file upload + JSON URLs)
+// Add product
 exports.addProduct = async (req, res) => {
   try {
+    const productdata = { ...req.body };
     let imageUrls = [];
 
-    // 1. Handle uploaded files
+    // Validate input
+    if (
+      !productdata.name ||
+      !productdata.categories ||
+      !productdata.brand ||
+      !productdata.description ||
+      !productdata.price ||
+      productdata.price <= 0
+    ) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
+      }
+      return res.status(400).json({
+        message:
+          "Missing required fields: name, categories, brand, description, or valid price",
+      });
+    }
+
+    // Handle uploaded images
     if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map((file) => streamUpload(file));
-      const results = await Promise.all(uploadPromises);
-      imageUrls = results.map((r) => r.secure_url);
+      imageUrls = req.files.map(
+        (file) => `http://localhost:5000/Uploads/${file.filename}`
+      );
+      console.log("New image URLs:", imageUrls);
     }
 
-    // 2. Handle JSON image URLs
-    if (req.body.images) {
-      let parsed = req.body.images;
-
-      if (typeof parsed === "string") {
-        try {
-          parsed = JSON.parse(parsed);
-        } catch {
-          parsed = [parsed];
-        }
-      }
-
-      if (Array.isArray(parsed)) {
-        imageUrls = [...imageUrls, ...parsed];
-      }
+    // Handle existing images
+    if (req.body.existingImages) {
+      const existingImages = Array.isArray(req.body.existingImages)
+        ? req.body.existingImages
+        : req.body.existingImages
+            .split(",")
+            .map((url) => url.trim())
+            .filter((url) => url && url.startsWith(`${BASE_URL}/Uploads`));
+      imageUrls = [...imageUrls, ...existingImages];
+      console.log("Existing images:", existingImages);
     }
 
-    const productData = {
-      ...req.body,
-      images: imageUrls,
-    };
+    if (imageUrls.length === 0) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
+      }
+      return res
+        .status(400)
+        .json({ message: "At least one image is required" });
+    }
 
-    const product = new Product(productData);
+    if (imageUrls.length > 5) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
+      }
+      return res.status(400).json({ message: "Maximum 5 images allowed" });
+    }
+
+    productdata.images = imageUrls;
+    delete productdata.existingImages;
+
+    const product = new Product(productdata);
     await product.save();
 
     res.status(201).json({
       success: true,
-      message: "Product added",
+      message: "Product added successfully",
       data: product,
     });
   } catch (error) {
-    console.error("Add product failed", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Add product failed:", error);
+    if (req.files) {
+      req.files.forEach((file) => {
+        fs.unlink(path.join(__dirname, "../Uploads", file.filename), (err) => {
+          if (err)
+            console.error(`Failed to delete file ${file.filename}:`, err);
+        });
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: `Failed to add product: ${error.message}`,
+      data: null,
+    });
   }
 };
 
-// ✅ Update product
+// Update product
 exports.updateProduct = async (req, res) => {
   try {
+    const { id } = req.params;
+    const productdata = { ...req.body };
     let imageUrls = [];
 
+    // Fetch current product
+    const currentProduct = await Product.findById(id);
+    if (!currentProduct) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
+      }
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Validate input
+    if (
+      !productdata.name ||
+      !productdata.categories ||
+      !productdata.brand ||
+      !productdata.description ||
+      !productdata.price ||
+      productdata.price <= 0
+    ) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
+      }
+      return res.status(400).json({
+        message:
+          "Missing required fields: name, categories, brand, description, or valid price",
+      });
+    }
+
+    // Preserve existing images
+    imageUrls = [...(currentProduct.images || [])];
+
+    // Handle new uploaded images
     if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map((file) => streamUpload(file));
-      const results = await Promise.all(uploadPromises);
-      imageUrls = results.map((r) => r.secure_url);
+      const newImageUrls = req.files.map(
+        (file) => `${BASE_URL}/Uploads/${file.filename}`
+      );
+      imageUrls = [...imageUrls, ...newImageUrls];
+      console.log("New image URLs:", newImageUrls);
     }
 
-    if (req.body.images) {
-      let parsed = req.body.images;
-      if (typeof parsed === "string") {
-        try {
-          parsed = JSON.parse(parsed);
-        } catch {
-          parsed = [parsed];
-        }
+    // Handle existing images from frontend
+    if (req.body.existingImages) {
+      const existingImages = Array.isArray(req.body.existingImages)
+        ? req.body.existingImages
+        : req.body.existingImages
+            .split(",")
+            .map((url) => url.trim())
+            .filter((url) => url && url.startsWith(`${BASE_URL}/Uploads`));
+      imageUrls = [
+        ...existingImages,
+        ...imageUrls.filter((url) => !existingImages.includes(url)),
+      ];
+      console.log("Preserved existing images:", existingImages);
+    }
+
+    if (imageUrls.length === 0) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
       }
-      if (Array.isArray(parsed)) {
-        imageUrls = [...imageUrls, ...parsed];
+      return res
+        .status(400)
+        .json({ message: "At least one image is required" });
+    }
+
+    if (imageUrls.length > 5) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
       }
+      return res.status(400).json({ message: "Maximum 5 images allowed" });
     }
 
-    const updateData = { ...req.body };
-    if (imageUrls.length > 0) {
-      updateData.images = imageUrls;
-    }
+    productdata.images = imageUrls;
+    delete productdata.existingImages;
 
-    const updated = await Product.findByIdAndUpdate(req.params.id, updateData, {
+    const product = await Product.findByIdAndUpdate(id, productdata, {
       new: true,
+      runValidators: true,
     });
 
-    if (!updated) return res.status(404).json({ message: "Product not found" });
+    if (!product) {
+      if (req.files) {
+        req.files.forEach((file) => {
+          fs.unlink(
+            path.join(__dirname, "../Uploads", file.filename),
+            (err) => {
+              if (err)
+                console.error(`Failed to delete file ${file.filename}:`, err);
+            }
+          );
+        });
+      }
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+        data: null,
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message: "Product updated",
-      data: updated,
+      message: "Product updated successfully",
+      data: product,
     });
   } catch (error) {
-    console.error("Update product failed", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Update product failed:", error);
+    if (req.files) {
+      req.files.forEach((file) => {
+        fs.unlink(path.join(__dirname, "../Uploads", file.filename), (err) => {
+          if (err)
+            console.error(`Failed to delete file ${file.filename}:`, err);
+        });
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: `Failed to update product: ${error.message}`,
+      data: null,
+    });
   }
 };
 
-// ✅ Delete product
+// Delete product
 exports.deleteProduct = async (req, res) => {
   try {
-    const deleted = await Product.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ message: "Product not found" });
+    const { id } = req.params;
+    const product = await Product.findByIdAndDelete(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+        data: null,
+      });
+    }
 
-    res.status(200).json({ success: true, message: "Product deleted" });
+    // Delete associated image files
+    if (product.images && product.images.length > 0) {
+      product.images.forEach((imageUrl) => {
+        const filename = path.basename(imageUrl);
+        const filePath = path.join(__dirname, "../Uploads", filename);
+        fs.unlink(filePath, (err) => {
+          if (err) console.error(`Failed to delete image ${filename}:`, err);
+        });
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product deleted successfully",
+      data: null,
+    });
   } catch (error) {
-    console.error("Delete product failed", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Delete product failed:", error);
+    res.status(500).json({
+      success: false,
+      message: `Failed to delete product: ${error.message}`,
+      data: null,
+    });
   }
 };
